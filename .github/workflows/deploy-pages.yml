@@ -24,13 +24,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build CSS
+        run: npm run build:css
+
+      - name: Start app (smoke test)
+        run: |
+          npm start > /tmp/natours-start.log 2>&1 &
+          echo $! > /tmp/natours.pid
+          sleep 8
+          curl -f http://127.0.0.1:8080
+
+      - name: Stop app
+        if: always()
+        run: |
+          if [ -f /tmp/natours.pid ]; then
+            kill "$(cat /tmp/natours.pid)" || true
+          fi
+
+      - name: Prepare deploy artifact
+        run: |
+          rm -rf dist
+          mkdir -p dist
+          cp index.html dist/
+          cp -R css dist/
+          if [ -d img ]; then cp -R img dist/; fi
+          if [ -d fonts ]; then cp -R fonts dist/; fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload static site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: ./dist
 
       - name: Deploy to GitHub Pages
         id: deployment
